@@ -76,6 +76,12 @@
       padding: 8px 12px;
       cursor: pointer;
     }
+    #winMessage {
+      font-size: 1.5rem;
+      color: #4caf50;
+      margin-top: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -91,6 +97,7 @@
     <button onclick="generateBoard()">게임 시작</button>
     <button onclick="resetGame()">🔄 재시작</button>
     <p>⏱️ 시간: <span id="timer">0</span>초 | 🏴 남은 지뢰: <span id="flagsLeft"></span></p>
+    <div id="winMessage">🎉 성공했습니다! 축하합니다!</div>
   </div>
   <div id="board"></div>
 
@@ -100,6 +107,7 @@
     const flagsLeftDisplay = document.getElementById('flagsLeft');
     const difficultySelect = document.getElementById('difficulty');
     const themeToggle = document.getElementById('themeToggle');
+    const winMessage = document.getElementById('winMessage');
 
     let size = 10;
     let mineCount = 15;
@@ -108,11 +116,13 @@
     let timer = 0;
     let timerInterval;
     let firstClick = true;
+    let revealedCount = 0;
 
     function resetGame() {
       clearInterval(timerInterval);
       timer = 0;
       timerDisplay.textContent = 0;
+      winMessage.style.display = 'none';
       generateBoard();
     }
 
@@ -123,6 +133,7 @@
       board.innerHTML = '';
       cells = [];
       firstClick = true;
+      revealedCount = 0;
 
       const difficulty = difficultySelect.value;
       if (difficulty === 'easy') {
@@ -225,6 +236,7 @@
       if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
 
       cell.classList.add('revealed');
+      revealedCount++;
 
       if (cell.dataset.mine === 'true') {
         cell.classList.add('mine');
@@ -251,6 +263,11 @@
             }
           }
         }
+      }
+
+      if (revealedCount === size * size - mineCount) {
+        winMessage.style.display = 'block';
+        clearInterval(timerInterval);
       }
     }
 
