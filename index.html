@@ -2,86 +2,102 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>💣 지뢰찾기</title>
   <style>
+    /* 색상 테마 변수 정의 */
     :root {
-      --bg: #1a1a1a;
-      --cell: #333;
-      --text: #f0f0f0;
-      --rev: #555;
-      --mine: #e74c3c;
-      --flag: #2ecc71;
+      --bg-color: #1a1a1a;
+      --cell-color: #333;
+      --text-color: #f0f0f0;
+      --revealed-color: #555;
+      --mine-color: #e74c3c;
+      --flag-color: #2ecc71;
       --cell-size: 40px;
     }
+
     body.light {
-      --bg: #f0f0f0;
-      --cell: #ddd;
-      --text: #1a1a1a;
-      --rev: #eee;
-      --mine: #e74c3c;
-      --flag: #27ae60;
+      --bg-color: #f9f9f9;
+      --cell-color: #ddd;
+      --text-color: #1a1a1a;
+      --revealed-color: #eee;
+      --mine-color: #e74c3c;
+      --flag-color: #27ae60;
     }
-    @media(max-width:600px){ :root { --cell-size: 32px; } }
-    @media(max-width:420px){ :root { --cell-size: 26px; } }
-    @media(max-width:360px){ :root { --cell-size: 22px; } }
+
+    /* 모바일 대응 셀 크기 자동 축소 */
+    @media (max-width: 600px) {
+      :root { --cell-size: 32px; }
+    }
+    @media (max-width: 420px) {
+      :root { --cell-size: 26px; }
+    }
+    @media (max-width: 360px) {
+      :root { --cell-size: 22px; }
+    }
 
     body {
       margin: 0;
       padding: 20px;
-      background: var(--bg);
-      color: var(--text);
-      text-align: center;
+      background-color: var(--bg-color);
+      color: var(--text-color);
       font-family: 'Segoe UI', sans-serif;
+      text-align: center;
       transition: background 0.3s, color 0.3s;
     }
+
     h1 {
       color: #00bcd4;
       margin-top: 0;
     }
+
     #controls {
       margin-bottom: 10px;
     }
+
     #board {
       display: grid;
       gap: 2px;
       justify-content: center;
       margin-top: 16px;
-      touch-action: none;
+      touch-action: none; /* iOS 줌 방지 */
     }
+
     .cell {
       width: var(--cell-size);
       height: var(--cell-size);
-      background: var(--cell);
+      background-color: var(--cell-color);
+      color: var(--text-color);
+      font-size: calc(var(--cell-size) * 0.5);
       border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--text);
-      font-size: calc(var(--cell-size) * 0.5);
       user-select: none;
-      transition: background 0.15s;
+      transition: background 0.2s;
     }
-    .revealed { background: var(--rev); }
-    .mine     { background: var(--mine); }
-    .flagged  { background: var(--flag); }
+
+    .revealed { background-color: var(--revealed-color); }
+    .mine     { background-color: var(--mine-color); }
+    .flagged  { background-color: var(--flag-color); }
+
     #themeToggle {
       position: fixed;
       top: 16px;
       right: 16px;
-      background: #00bcd4;
-      color: white;
+      background-color: #00bcd4;
       border: none;
+      color: white;
       border-radius: 6px;
       padding: 8px 12px;
       cursor: pointer;
     }
+
     #winMessage {
-      display: none;
       font-size: 1.5rem;
       color: #4caf50;
       margin-top: 10px;
+      display: none;
     }
   </style>
 </head>
@@ -104,180 +120,202 @@
 
   <div id="board"></div>
 
-  <script>
-    const board = document.getElementById('board');
-    const timerDOM = document.getElementById('timer');
-    const flagsDOM = document.getElementById('flagsLeft');
-    const diffSelect = document.getElementById('difficulty');
-    const winMessage = document.getElementById('winMessage');
-    const startBtn = document.getElementById('startBtn');
-    const resetBtn = document.getElementById('resetBtn');
+<script>
+  const board = document.getElementById('board');
+  const timerEl = document.getElementById('timer');
+  const flagsEl = document.getElementById('flagsLeft');
+  const diffSel = document.getElementById('difficulty');
+  const winMsg  = document.getElementById('winMessage');
+  const startBtn= document.getElementById('startBtn');
+  const resetBtn= document.getElementById('resetBtn');
 
-    let size = 10, mines = 15, cells = [], flagsLeft = 0;
-    let firstClick = true, revealed = 0, timer = 0, tHandle;
+  let size=10, mineCount=15, cells=[], flagsLeft=0;
+  let firstClick=true, revealed=0, timer=0, timerId;
 
-    const LONG = 500;
+  const LONG_PRESS = 500;
 
-    const idx = (x, y) => y * size + x;
+  startBtn.onclick = generateBoard;
+  resetBtn.onclick = generateBoard;
 
-    startBtn.onclick = generate;
-    resetBtn.onclick = () => generate();
-    document.getElementById('themeToggle').onclick = () => {
-      document.body.classList.toggle('light');
-      event.target.textContent = document.body.classList.contains('light') ? '🌞 테마' : '🌙 테마';
-    };
+  document.getElementById('themeToggle').onclick = (e)=>{
+    document.body.classList.toggle('light');
+    e.target.textContent = document.body.classList.contains('light') ? '🌞 테마' : '🌙 테마';
+  };
 
-    function generate() {
-      clearInterval(tHandle); timer = 0;
-      timerDOM.textContent = 0;
-      firstClick = true; revealed = 0;
-      winMessage.style.display = 'none';
+  generateBoard();
 
-      const diff = diffSelect.value;
-      if (diff === 'easy') { size = 8; mines = 10; }
-      else if (diff === 'medium') { size = 10; mines = 15; }
-      else { size = 12; mines = 25; }
+  function generateBoard() {
+    clearInterval(timerId);
+    timer = 0; timerEl.textContent = 0;
+    revealed = 0;
+    firstClick = true;
+    winMsg.style.display = 'none';
 
-      board.style.gridTemplateColumns = `repeat(${size}, var(--cell-size))`;
-      board.style.gridTemplateRows = `repeat(${size}, var(--cell-size))`;
-      board.innerHTML = ''; cells = [];
-      flagsLeft = mines; flagsDOM.textContent = flagsLeft;
+    const diff = diffSel.value;
+    if (diff === 'easy')     { size = 8;  mineCount = 10; }
+    else if (diff === 'medium') { size = 10; mineCount = 15; }
+    else                     { size = 12; mineCount = 25; }
 
-      for (let i = 0; i < size * size; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.dataset.idx = i;
-        board.appendChild(cell);
-        cells[i] = cell;
+    board.style.gridTemplateColumns = `repeat(${size}, var(--cell-size))`;
+    board.style.gridTemplateRows    = `repeat(${size}, var(--cell-size))`;
 
-        // 데스크탑
-        cell.addEventListener('click', () => handleClick(i));
-        cell.addEventListener('contextmenu', e => {
-          e.preventDefault(); toggleFlag(i);
-        });
+    board.innerHTML = '';
+    cells = [];
+    flagsLeft = mineCount;
+    flagsEl.textContent = flagsLeft;
 
-        // 모바일 long press
-        let pressTimer, moved = false;
-        cell.addEventListener('touchstart', () => {
-          moved = false;
-          pressTimer = setTimeout(() => {
-            toggleFlag(i); moved = true;
-          }, LONG);
-        });
-        cell.addEventListener('touchmove', () => {
-          clearTimeout(pressTimer); moved = true;
-        });
-        cell.addEventListener('touchend', () => {
-          clearTimeout(pressTimer);
-          if (!moved) handleClick(i);
-        });
+    for (let i = 0; i < size * size; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.idx = i;
+      board.appendChild(cell);
+      cells.push(cell);
+      attachEvents(cell, i);
+    }
+  }
+
+  function attachEvents(cell, i) {
+    // 데스크탑
+    cell.addEventListener('click', () => handleClick(i));
+    cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault(); toggleFlag(i);
+    });
+
+    // 모바일 터치 (롱프레스 감지)
+    let timer = null;
+    let moved = false;
+
+    cell.addEventListener('touchstart', () => {
+      moved = false;
+      timer = setTimeout(() => {
+        toggleFlag(i);
+        moved = true;
+      }, LONG_PRESS);
+    });
+
+    cell.addEventListener('touchmove', () => {
+      clearTimeout(timer);
+      moved = true;
+    });
+
+    cell.addEventListener('touchend', () => {
+      clearTimeout(timer);
+      if (!moved) handleClick(i);
+    });
+  }
+
+  function startTimer() {
+    timerId = setInterval(() => {
+      timer++;
+      timerEl.textContent = timer;
+    }, 1000);
+  }
+
+  function placeMines(excludeIndex) {
+    const mines = new Set();
+    while (mines.size < mineCount) {
+      const rand = Math.floor(Math.random() * size * size);
+      if (rand !== excludeIndex) {
+        mines.add(rand);
       }
     }
-
-    function startTimer() {
-      tHandle = setInterval(() => {
-        timer++;
-        timerDOM.textContent = timer;
-      }, 1000);
+    for (let idx of mines) {
+      cells[idx].dataset.mine = 'true';
     }
+  }
 
-    function plantMines(excl) {
-      const set = new Set();
-      while (set.size < mines) {
-        const r = Math.floor(Math.random() * size * size);
-        if (r !== excl) set.add(r);
+  function countMines(x, y) {
+    let count = 0;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+          const neighbor = cells[ny * size + nx];
+          if (neighbor.dataset.mine === 'true') count++;
+        }
       }
-      set.forEach(i => cells[i].dataset.mine = '1');
+    }
+    return count;
+  }
+
+  function handleClick(i) {
+    const cell = cells[i];
+    if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
+
+    if (firstClick) {
+      placeMines(i);
+      startTimer();
+      firstClick = false;
     }
 
-    function adj(x, y) {
-      let c = 0;
+    reveal(i);
+  }
+
+  function reveal(i) {
+    const cell = cells[i];
+    if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
+
+    cell.classList.add('revealed');
+    revealed++;
+
+    if (cell.dataset.mine === 'true') {
+      cell.classList.add('mine');
+      cell.textContent = '💣';
+      clearInterval(timerId);
+      revealAllMines();
+      alert('💥 지뢰를 밟았습니다! 게임 오버!');
+      return;
+    }
+
+    const x = i % size;
+    const y = Math.floor(i / size);
+    const count = countMines(x, y);
+
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
       for (let dx = -1; dx <= 1; dx++) {
         for (let dy = -1; dy <= 1; dy++) {
-          if (dx || dy) {
-            const nx = x + dx, ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-              if (cells[idx(nx, ny)].dataset.mine === '1') c++;
-            }
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+            reveal(ny * size + nx);
           }
         }
       }
-      return c;
     }
 
-    function handleClick(i) {
-      const cell = cells[i];
-      if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
-
-      if (firstClick) {
-        plantMines(i); startTimer(); firstClick = false;
-      }
-      reveal(i);
+    if (revealed === size * size - mineCount) {
+      winMsg.style.display = 'block';
+      clearInterval(timerId);
     }
+  }
 
-    function reveal(i) {
-      const cell = cells[i];
-      if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
+  function toggleFlag(i) {
+    const cell = cells[i];
+    if (cell.classList.contains('revealed')) return;
 
-      cell.classList.add('revealed');
-      revealed++;
+    if (cell.classList.contains('flagged')) {
+      cell.classList.remove('flagged');
+      cell.textContent = '';
+      flagsLeft++;
+    } else if (flagsLeft > 0) {
+      cell.classList.add('flagged');
+      cell.textContent = '🚩';
+      flagsLeft--;
+    }
+    flagsEl.textContent = flagsLeft;
+  }
 
-      if (cell.dataset.mine === '1') {
-        cell.classList.add('mine');
+  function revealAllMines() {
+    for (const cell of cells) {
+      if (cell.dataset.mine === 'true') {
+        cell.classList.add('revealed', 'mine');
         cell.textContent = '💣';
-        revealMines();
-        clearInterval(tHandle);
-        alert('💥 지뢰! 게임 오버');
-        return;
-      }
-
-      const x = i % size, y = Math.floor(i / size);
-      const count = adj(x, y);
-      if (count) {
-        cell.textContent = count;
-      } else {
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dy = -1; dy <= 1; dy++) {
-            const nx = x + dx, ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-              reveal(idx(nx, ny));
-            }
-          }
-        }
-      }
-
-      if (revealed === size * size - mines) {
-        winMessage.style.display = 'block';
-        clearInterval(tHandle);
       }
     }
-
-    function toggleFlag(i) {
-      const cell = cells[i];
-      if (cell.classList.contains('revealed')) return;
-      if (cell.classList.contains('flagged')) {
-        cell.classList.remove('flagged');
-        cell.textContent = '';
-        flagsLeft++;
-      } else if (flagsLeft > 0) {
-        cell.classList.add('flagged');
-        cell.textContent = '🚩';
-        flagsLeft--;
-      }
-      flagsDOM.textContent = flagsLeft;
-    }
-
-    function revealMines() {
-      cells.forEach(c => {
-        if (c.dataset.mine === '1') {
-          c.classList.add('revealed', 'mine');
-          c.textContent = '💣';
-        }
-      });
-    }
-
-    // 최초 시작
-    generate();
-  </script>
+  }
+</script>
 </body>
 </html>
