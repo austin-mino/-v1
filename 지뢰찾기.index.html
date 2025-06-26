@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>지뢰찾기</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #1a1a1a;
+      color: #f0f0f0;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #00bcd4;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(10, 40px);
+      grid-template-rows: repeat(10, 40px);
+      gap: 2px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .cell {
+      width: 40px;
+      height: 40px;
+      background-color: #333;
+      color: white;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .revealed {
+      background-color: #555;
+    }
+    .mine {
+      background-color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>💣 지뢰찾기</h1>
+  <div id="board"></div>
+
+  <script>
+    const board = document.getElementById('board');
+    const size = 10;
+    const mineCount = 10;
+    const cells = [];
+
+    function generateBoard() {
+      board.innerHTML = '';
+      const mines = new Set();
+      while (mines.size < mineCount) {
+        mines.add(Math.floor(Math.random() * size * size));
+      }
+
+      for (let i = 0; i < size * size; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.dataset.mine = mines.has(i);
+        board.appendChild(cell);
+        cells[i] = cell;
+
+        cell.addEventListener('click', () => reveal(i));
+      }
+    }
+
+    function countAdjacentMines(index) {
+      const x = index % size;
+      const y = Math.floor(index / size);
+      let count = 0;
+
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+            const ni = ny * size + nx;
+            if (cells[ni] && cells[ni].dataset.mine === 'true') count++;
+          }
+        }
+      }
+      return count;
+    }
+
+    function reveal(index) {
+      const cell = cells[index];
+      if (!cell || cell.classList.contains('revealed')) return;
+
+      cell.classList.add('revealed');
+
+      if (cell.dataset.mine === 'true') {
+        cell.classList.add('mine');
+        cell.innerText = '💣';
+        alert('지뢰를 밟았습니다! 게임 오버!');
+        revealAllMines();
+        return;
+      }
+
+      const count = countAdjacentMines(index);
+      if (count > 0) {
+        cell.innerText = count;
+      } else {
+        const x = index % size;
+        const y = Math.floor(index / size);
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+              const ni = ny * size + nx;
+              reveal(ni);
+            }
+          }
+        }
+      }
+    }
+
+    function revealAllMines() {
+      cells.forEach(cell => {
+        if (cell.dataset.mine === 'true') {
+          cell.classList.add('revealed', 'mine');
+          cell.innerText = '💣';
+        }
+      });
+    }
+
+    generateBoard();
+  </script>
+</body>
+</html>
