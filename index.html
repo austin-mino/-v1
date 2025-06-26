@@ -1,291 +1,217 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>지뢰찾기</title>
-  <style>
-    :root {
-      --bg-color: #1a1a1a;
-      --cell-color: #333;
-      --text-color: #f0f0f0;
-      --revealed-color: #555;
-      --mine-color: red;
-      --flag-color: #2a2;
-    }
-    body.light {
-      --bg-color: #f0f0f0;
-      --cell-color: #ddd;
-      --text-color: #1a1a1a;
-      --revealed-color: #eee;
-      --mine-color: #e74c3c;
-      --flag-color: #27ae60;
-    }
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      transition: background 0.3s, color 0.3s;
-    }
-    h1 {
-      color: #00bcd4;
-    }
-    #controls {
-      margin-bottom: 10px;
-    }
-    #board {
-      display: grid;
-      gap: 2px;
-      justify-content: center;
-      margin-top: 20px;
-    }
-    .cell {
-      width: 40px;
-      height: 40px;
-      background-color: var(--cell-color);
-      color: var(--text-color);
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.2s;
-    }
-    .revealed {
-      background-color: var(--revealed-color);
-    }
-    .mine {
-      background-color: var(--mine-color);
-    }
-    .flagged {
-      background-color: var(--flag-color);
-    }
-    #themeToggle {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      background: #00bcd4;
-      border: none;
-      border-radius: 6px;
-      color: white;
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-    #winMessage {
-      font-size: 1.5rem;
-      color: #4caf50;
-      margin-top: 10px;
-      display: none;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>💣 지뢰찾기</title>
+<style>
+  /* ─── 색상 토큰 ─── */
+  :root{
+    --bg:#1a1a1a; --cell:#333; --text:#f0f0f0;
+    --rev:#555;   --mine:#e74c3c; --flag:#2ecc71;
+    --cell-size:40px;
+  }
+  body.light{
+    --bg:#f0f0f0; --cell:#ddd; --text:#1a1a1a;
+    --rev:#eee;   --mine:#e74c3c; --flag:#27ae60;
+  }
+  /* 모바일-가변 셀 크기 */
+  @media(max-width:600px){:root{--cell-size:32px}}
+  @media(max-width:420px){:root{--cell-size:26px}}
+  @media(max-width:360px){:root{--cell-size:22px}}
+
+  /* ─── 기본 스타일 ─── */
+  body{
+    margin:0;padding:20px;text-align:center;
+    background:var(--bg);color:var(--text);
+    font-family:'Segoe UI',sans-serif;
+    transition:background .3s,color .3s;
+  }
+  h1{color:#00bcd4;margin-top:0}
+  #controls{margin-bottom:10px}
+  #board{
+    display:grid;gap:2px;justify-content:center;margin-top:16px;
+    touch-action:none; /* iOS 더블탭 확대 방지 */
+  }
+  .cell{
+    width:var(--cell-size);height:var(--cell-size);
+    background:var(--cell);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text);font-size:calc(var(--cell-size)*0.5);
+    user-select:none;transition:background .15s;
+  }
+  .revealed{background:var(--rev)}
+  .mine{background:var(--mine)}
+  .flagged{background:var(--flag)}
+  #themeToggle{
+    position:fixed;top:16px;right:16px;
+    background:#00bcd4;border:none;border-radius:6px;
+    color:#fff;padding:8px 12px;cursor:pointer
+  }
+  #winMessage{display:none;font-size:1.5rem;color:#4caf50;margin-top:10px}
+</style>
 </head>
 <body>
-  <button id="themeToggle">🌙 테마</button>
-  <h1>💣 지뢰찾기</h1>
-  <div id="controls">
-    난이도:
-    <select id="difficulty">
-      <option value="easy">쉬움 (8x8, 10지뢰)</option>
-      <option value="medium">보통 (10x10, 15지뢰)</option>
-      <option value="hard">어려움 (12x12, 25지뢰)</option>
-    </select>
-    <button onclick="generateBoard()">게임 시작</button>
-    <button onclick="resetGame()">🔄 재시작</button>
-    <p>⏱️ 시간: <span id="timer">0</span>초 | 🏴 남은 지뢰: <span id="flagsLeft"></span></p>
-    <div id="winMessage">🎉 성공했습니다! 축하합니다!</div>
-  </div>
-  <div id="board"></div>
+<button id="themeToggle">🌙 테마</button>
+<h1>💣 지뢰찾기</h1>
 
-  <script>
-    const board = document.getElementById('board');
-    const timerDisplay = document.getElementById('timer');
-    const flagsLeftDisplay = document.getElementById('flagsLeft');
-    const difficultySelect = document.getElementById('difficulty');
-    const themeToggle = document.getElementById('themeToggle');
-    const winMessage = document.getElementById('winMessage');
+<div id="controls">
+  난이도:
+  <select id="difficulty">
+    <option value="easy">쉬움 (8×8, 10)</option>
+    <option value="medium" selected>보통 (10×10, 15)</option>
+    <option value="hard">어려움 (12×12, 25)</option>
+  </select>
+  <button id="startBtn">게임 시작</button>
+  <button id="resetBtn">🔄 재시작</button>
+  <p>⏱ <span id="timer">0</span>초 | 🏴 <span id="flagsLeft">0</span></p>
+  <div id="winMessage">🎉 성공했습니다! 축하합니다!</div>
+</div>
 
-    let size = 10;
-    let mineCount = 15;
-    let cells = [];
-    let flagsLeft = 0;
-    let timer = 0;
-    let timerInterval;
-    let firstClick = true;
-    let revealedCount = 0;
+<div id="board"></div>
 
-    function resetGame() {
-      clearInterval(timerInterval);
-      timer = 0;
-      timerDisplay.textContent = 0;
-      winMessage.style.display = 'none';
-      generateBoard();
+<script>
+/* ─── DOM ─── */
+const board       = document.getElementById('board');
+const timerDOM    = document.getElementById('timer');
+const flagsDOM    = document.getElementById('flagsLeft');
+const diffSelect  = document.getElementById('difficulty');
+const winMessage  = document.getElementById('winMessage');
+const startBtn    = document.getElementById('startBtn');
+const resetBtn    = document.getElementById('resetBtn');
+/* ─── 게임 상태 ─── */
+let size=10, mines=15, cells=[], flagsLeft=0;
+let firstClick=true, revealed=0, timer=0, tHandle;
+
+/* ─── 모바일 long-press 플래그용 ─── */
+const LONG=500; //ms
+
+/* ─── 헬퍼 ─── */
+const idx=(x,y)=>y*size+x;
+
+/* ─── 초기화 ─── */
+startBtn.onclick = generate;
+resetBtn.onclick = resetGame;
+document.getElementById('themeToggle').onclick= ()=>{
+  document.body.classList.toggle('light');
+  event.target.textContent = document.body.classList.contains('light')?'🌞 테마':'🌙 테마';
+};
+generate();
+
+/* ─── 보드 생성 ─── */
+function generate(){
+  clearInterval(tHandle); timer=0; timerDOM.textContent=0;
+  firstClick=true; revealed=0; winMessage.style.display='none';
+  const diff=diffSelect.value;
+  if(diff==='easy'){size=8; mines=10}
+  else if(diff==='medium'){size=10; mines=15}
+  else {size=12; mines=25}
+  board.style.gridTemplateColumns=`repeat(${size},var(--cell-size))`;
+  board.style.gridTemplateRows  =`repeat(${size},var(--cell-size))`;
+  board.innerHTML=''; cells=[];
+  flagsLeft=mines; flagsDOM.textContent=flagsLeft;
+
+  for(let i=0;i<size*size;i++){
+    const d=document.createElement('div'); d.className='cell';
+    d.dataset.idx=i; board.appendChild(d); cells.push(d);
+
+    /* click / long-press 분리  */
+    let pressTimer, moved=false;
+    d.addEventListener('touchstart',e=>{
+      moved=false;
+      pressTimer=setTimeout(()=>{toggleFlag(i); moved=true;}, LONG);
+    });
+    d.addEventListener('touchmove',()=>{clearTimeout(pressTimer); moved=true;});
+    d.addEventListener('touchend',e=>{
+      if(!moved){ clearTimeout(pressTimer); handleClick(i); }
+    });
+    /* 데스크톱 */
+    d.addEventListener('click', ()=>handleClick(i));
+    d.addEventListener('contextmenu',e=>{e.preventDefault(); toggleFlag(i);});
+  }
+}
+function resetGame(){ generate(); }
+
+/* ─── 타이머 ─── */
+function startTimer(){
+  tHandle=setInterval(()=>{timer++; timerDOM.textContent=timer;},1000);
+}
+
+/* ─── 지뢰 배치 (첫 클릭 안전) ─── */
+function plantMines(excl){
+  const set=new Set();
+  while(set.size<mines){
+    const r=Math.floor(Math.random()*size*size);
+    if(r!==excl) set.add(r);
+  }
+  set.forEach(i=>cells[i].dataset.mine='1');
+}
+
+/* ─── 인접 지뢰 수 ─── */
+function adj(x,y){
+  let c=0;
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+    if(dx||dy){
+      const nx=x+dx, ny=y+dy;
+      if(nx>=0&&ny>=0&&nx<size&&ny<size)
+        if(cells[idx(nx,ny)].dataset.mine==='1') c++;
     }
+  }
+  return c;
+}
 
-    function generateBoard() {
-      clearInterval(timerInterval);
-      timer = 0;
-      timerDisplay.textContent = 0;
-      board.innerHTML = '';
-      cells = [];
-      firstClick = true;
-      revealedCount = 0;
+/* ─── 클릭 / 열기 ─── */
+function handleClick(i){
+  const d=cells[i];
+  if(d.classList.contains('revealed')||d.classList.contains('flagged'))return;
 
-      const difficulty = difficultySelect.value;
-      if (difficulty === 'easy') {
-        size = 8;
-        mineCount = 10;
-      } else if (difficulty === 'medium') {
-        size = 10;
-        mineCount = 15;
-      } else {
-        size = 12;
-        mineCount = 25;
-      }
+  if(firstClick){
+    plantMines(i); startTimer(); firstClick=false;
+  }
+  reveal(i);
+}
 
-      board.style.gridTemplateColumns = `repeat(${size}, 40px)`;
-      board.style.gridTemplateRows = `repeat(${size}, 40px)`;
+function reveal(i){
+  const d=cells[i];
+  if(!d||d.classList.contains('revealed')||d.classList.contains('flagged'))return;
 
-      flagsLeft = mineCount;
-      flagsLeftDisplay.textContent = flagsLeft;
+  d.classList.add('revealed'); revealed++;
 
-      for (let i = 0; i < size * size; i++) {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.dataset.index = i;
-        board.appendChild(cell);
-        cells[i] = cell;
-
-        cell.addEventListener('click', (e) => handleClick(i, e));
-        cell.addEventListener('contextmenu', (e) => {
-          e.preventDefault();
-          toggleFlag(i);
-        });
-      }
+  if(d.dataset.mine==='1'){
+    d.classList.add('mine'); d.textContent='💣';
+    revealMines(); clearInterval(tHandle); alert('💥 지뢰! 게임 오버');
+    return;
+  }
+  const x=i%size, y=Math.floor(i/size), n=adj(x,y);
+  if(n){ d.textContent=n; }
+  else{
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+      const nx=x+dx, ny=y+dy;
+      if(nx>=0&&ny>=0&&nx<size&&ny<size) reveal(idx(nx,ny));
     }
+  }
+  if(revealed===size*size-mines){
+    winMessage.style.display='block'; clearInterval(tHandle);
+  }
+}
 
-    function startTimer() {
-      timerInterval = setInterval(() => {
-        timer++;
-        timerDisplay.textContent = timer;
-      }, 1000);
-    }
+/* ─── 깃발 ─── */
+function toggleFlag(i){
+  const d=cells[i];
+  if(d.classList.contains('revealed'))return;
+  if(d.classList.contains('flagged')){
+    d.classList.remove('flagged'); d.textContent=''; flagsLeft++;
+  }else if(flagsLeft){
+    d.classList.add('flagged'); d.textContent='🚩'; flagsLeft--;
+  }
+  flagsDOM.textContent=flagsLeft;
+}
 
-    function placeMines(excludeIndex) {
-      const mineSet = new Set();
-      while (mineSet.size < mineCount) {
-        const rand = Math.floor(Math.random() * size * size);
-        if (rand !== excludeIndex) {
-          mineSet.add(rand);
-        }
-      }
-      mineSet.forEach(i => cells[i].dataset.mine = 'true');
-    }
-
-    function countAdjacentMines(index) {
-      const x = index % size;
-      const y = Math.floor(index / size);
-      let count = 0;
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-            const ni = ny * size + nx;
-            if (cells[ni]?.dataset.mine === 'true') count++;
-          }
-        }
-      }
-      return count;
-    }
-
-    function handleClick(index, e) {
-      const cell = cells[index];
-      if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
-
-      if (firstClick) {
-        placeMines(index);
-        startTimer();
-        firstClick = false;
-      }
-
-      reveal(index);
-    }
-
-    function toggleFlag(index) {
-      const cell = cells[index];
-      if (cell.classList.contains('revealed')) return;
-      if (cell.classList.contains('flagged')) {
-        cell.classList.remove('flagged');
-        cell.innerText = '';
-        flagsLeft++;
-      } else if (flagsLeft > 0) {
-        cell.classList.add('flagged');
-        cell.innerText = '🚩';
-        flagsLeft--;
-      }
-      flagsLeftDisplay.textContent = flagsLeft;
-    }
-
-    function reveal(index) {
-      const cell = cells[index];
-      if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
-
-      cell.classList.add('revealed');
-      revealedCount++;
-
-      if (cell.dataset.mine === 'true') {
-        cell.classList.add('mine');
-        cell.innerText = '💣';
-        alert('지뢰를 밟았습니다! 게임 오버!');
-        revealAllMines();
-        clearInterval(timerInterval);
-        return;
-      }
-
-      const count = countAdjacentMines(index);
-      if (count > 0) {
-        cell.innerText = count;
-      } else {
-        const x = index % size;
-        const y = Math.floor(index / size);
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dy = -1; dy <= 1; dy++) {
-            const nx = x + dx;
-            const ny = y + dy;
-            if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-              const ni = ny * size + nx;
-              reveal(ni);
-            }
-          }
-        }
-      }
-
-      if (revealedCount === size * size - mineCount) {
-        winMessage.style.display = 'block';
-        clearInterval(timerInterval);
-      }
-    }
-
-    function revealAllMines() {
-      cells.forEach(cell => {
-        if (cell.dataset.mine === 'true') {
-          cell.classList.add('revealed', 'mine');
-          cell.innerText = '💣';
-        }
-      });
-    }
-
-    themeToggle.onclick = () => {
-      document.body.classList.toggle('light');
-      themeToggle.textContent = document.body.classList.contains('light') ? '🌞 테마' : '🌙 테마';
-    };
-
-    generateBoard();
-  </script>
+/* ─── 전체 지뢰 표시 ─── */
+function revealMines(){
+  cells.forEach(c=>{ if(c.dataset.mine==='1'){c.classList.add('revealed','mine'); c.textContent='💣';} });
+}
+</script>
 </body>
 </html>
