@@ -6,13 +6,15 @@
   <title>지뢰찾기</title>
   <style>
     :root {
+      --cell-size: 32px;
       --bg-color: #1a1a1a;
       --cell-color: #333;
       --text-color: #f0f0f0;
       --revealed-color: #555;
-      --mine-color: red;.
+      --mine-color: red;
       --flag-color: #2a2;
     }
+
     body.light {
       --bg-color: #f0f0f0;
       --cell-color: #ddd;
@@ -21,6 +23,7 @@
       --mine-color: #e74c3c;
       --flag-color: #27ae60;
     }
+
     body {
       font-family: 'Segoe UI', sans-serif;
       background-color: var(--bg-color);
@@ -30,24 +33,28 @@
       padding: 20px;
       transition: background 0.3s, color 0.3s;
     }
+
     h1 {
       color: #00bcd4;
     }
+
     #controls {
       margin-bottom: 10px;
     }
+
     #board {
       display: grid;
       gap: 2px;
       justify-content: center;
       margin-top: 20px;
     }
+
     .cell {
-      width: 40px;
-      height: 40px;
+      width: var(--cell-size);
+      height: var(--cell-size);
       background-color: var(--cell-color);
       color: var(--text-color);
-      font-size: 16px;
+      font-size: calc(var(--cell-size) * 0.45);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -56,15 +63,19 @@
       user-select: none;
       transition: background 0.2s;
     }
+
     .revealed {
       background-color: var(--revealed-color);
     }
+
     .mine {
       background-color: var(--mine-color);
     }
+
     .flagged {
       background-color: var(--flag-color);
     }
+
     #themeToggle {
       position: fixed;
       top: 16px;
@@ -76,6 +87,7 @@
       padding: 8px 12px;
       cursor: pointer;
     }
+
     #winMessage {
       font-size: 1.5rem;
       color: #4caf50;
@@ -147,8 +159,8 @@
         mineCount = 25;
       }
 
-      board.style.gridTemplateColumns = `repeat(${size}, 40px)`;
-      board.style.gridTemplateRows = `repeat(${size}, 40px)`;
+      board.style.gridTemplateColumns = `repeat(${size}, var(--cell-size))`;
+      board.style.gridTemplateRows = `repeat(${size}, var(--cell-size))`;
 
       flagsLeft = mineCount;
       flagsLeftDisplay.textContent = flagsLeft;
