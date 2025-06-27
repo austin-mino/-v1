@@ -2,97 +2,80 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>💣 지뢰찾기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>지뢰찾기</title>
   <style>
-    /* 색상 테마 변수 정의 */
     :root {
       --bg-color: #1a1a1a;
       --cell-color: #333;
       --text-color: #f0f0f0;
       --revealed-color: #555;
-      --mine-color: #e74c3c;
-      --flag-color: #2ecc71;
-      --cell-size: 40px;
+      --mine-color: red;.
+      --flag-color: #2a2;
     }
-
     body.light {
-      --bg-color: #f9f9f9;
+      --bg-color: #f0f0f0;
       --cell-color: #ddd;
       --text-color: #1a1a1a;
       --revealed-color: #eee;
       --mine-color: #e74c3c;
       --flag-color: #27ae60;
     }
-
-    /* 모바일 대응 셀 크기 자동 축소 */
-    @media (max-width: 600px) {
-      :root { --cell-size: 32px; }
-    }
-    @media (max-width: 420px) {
-      :root { --cell-size: 26px; }
-    }
-    @media (max-width: 360px) {
-      :root { --cell-size: 22px; }
-    }
-
     body {
-      margin: 0;
-      padding: 20px;
+      font-family: 'Segoe UI', sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
-      font-family: 'Segoe UI', sans-serif;
       text-align: center;
+      margin: 0;
+      padding: 20px;
       transition: background 0.3s, color 0.3s;
     }
-
     h1 {
       color: #00bcd4;
-      margin-top: 0;
     }
-
     #controls {
       margin-bottom: 10px;
     }
-
     #board {
       display: grid;
       gap: 2px;
       justify-content: center;
-      margin-top: 16px;
-      touch-action: none; /* iOS 줌 방지 */
+      margin-top: 20px;
     }
-
     .cell {
-      width: var(--cell-size);
-      height: var(--cell-size);
+      width: 40px;
+      height: 40px;
       background-color: var(--cell-color);
       color: var(--text-color);
-      font-size: calc(var(--cell-size) * 0.5);
-      border-radius: 6px;
+      font-size: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
+      border-radius: 6px;
+      cursor: pointer;
       user-select: none;
       transition: background 0.2s;
     }
-
-    .revealed { background-color: var(--revealed-color); }
-    .mine     { background-color: var(--mine-color); }
-    .flagged  { background-color: var(--flag-color); }
-
+    .revealed {
+      background-color: var(--revealed-color);
+    }
+    .mine {
+      background-color: var(--mine-color);
+    }
+    .flagged {
+      background-color: var(--flag-color);
+    }
     #themeToggle {
       position: fixed;
       top: 16px;
       right: 16px;
-      background-color: #00bcd4;
+      background: #00bcd4;
       border: none;
-      color: white;
       border-radius: 6px;
+      color: white;
       padding: 8px 12px;
       cursor: pointer;
     }
-
     #winMessage {
       font-size: 1.5rem;
       color: #4caf50;
@@ -104,226 +87,205 @@
 <body>
   <button id="themeToggle">🌙 테마</button>
   <h1>💣 지뢰찾기</h1>
-
   <div id="controls">
     난이도:
     <select id="difficulty">
-      <option value="easy">쉬움 (8×8, 10)</option>
-      <option value="medium" selected>보통 (10×10, 15)</option>
-      <option value="hard">어려움 (12×12, 25)</option>
+      <option value="easy">쉬움 (8x8, 10지뢰)</option>
+      <option value="medium">보통 (10x10, 15지뢰)</option>
+      <option value="hard">어려움 (12x12, 25지뢰)</option>
     </select>
-    <button id="startBtn">게임 시작</button>
-    <button id="resetBtn">🔄 재시작</button>
-    <p>⏱ <span id="timer">0</span>초 | 🏴 <span id="flagsLeft">0</span></p>
+    <button onclick="generateBoard()">게임 시작</button>
+    <button onclick="resetGame()">🔄 재시작</button>
+    <p>⏱️ 시간: <span id="timer">0</span>초 | 🏴 남은 지뢰: <span id="flagsLeft"></span></p>
     <div id="winMessage">🎉 성공했습니다! 축하합니다!</div>
   </div>
-
   <div id="board"></div>
 
-<script>
-  const board = document.getElementById('board');
-  const timerEl = document.getElementById('timer');
-  const flagsEl = document.getElementById('flagsLeft');
-  const diffSel = document.getElementById('difficulty');
-  const winMsg  = document.getElementById('winMessage');
-  const startBtn= document.getElementById('startBtn');
-  const resetBtn= document.getElementById('resetBtn');
+  <script>
+    const board = document.getElementById('board');
+    const timerDisplay = document.getElementById('timer');
+    const flagsLeftDisplay = document.getElementById('flagsLeft');
+    const difficultySelect = document.getElementById('difficulty');
+    const themeToggle = document.getElementById('themeToggle');
+    const winMessage = document.getElementById('winMessage');
 
-  let size=10, mineCount=15, cells=[], flagsLeft=0;
-  let firstClick=true, revealed=0, timer=0, timerId;
+    let size = 10;
+    let mineCount = 15;
+    let cells = [];
+    let flagsLeft = 0;
+    let timer = 0;
+    let timerInterval;
+    let firstClick = true;
+    let revealedCount = 0;
 
-  const LONG_PRESS = 500;
-
-  startBtn.onclick = generateBoard;
-  resetBtn.onclick = generateBoard;
-
-  document.getElementById('themeToggle').onclick = (e)=>{
-    document.body.classList.toggle('light');
-    e.target.textContent = document.body.classList.contains('light') ? '🌞 테마' : '🌙 테마';
-  };
-
-  generateBoard();
-
-  function generateBoard() {
-    clearInterval(timerId);
-    timer = 0; timerEl.textContent = 0;
-    revealed = 0;
-    firstClick = true;
-    winMsg.style.display = 'none';
-
-    const diff = diffSel.value;
-    if (diff === 'easy')     { size = 8;  mineCount = 10; }
-    else if (diff === 'medium') { size = 10; mineCount = 15; }
-    else                     { size = 12; mineCount = 25; }
-
-    board.style.gridTemplateColumns = `repeat(${size}, var(--cell-size))`;
-    board.style.gridTemplateRows    = `repeat(${size}, var(--cell-size))`;
-
-    board.innerHTML = '';
-    cells = [];
-    flagsLeft = mineCount;
-    flagsEl.textContent = flagsLeft;
-
-    for (let i = 0; i < size * size; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.idx = i;
-      board.appendChild(cell);
-      cells.push(cell);
-      attachEvents(cell, i);
+    function resetGame() {
+      clearInterval(timerInterval);
+      timer = 0;
+      timerDisplay.textContent = 0;
+      winMessage.style.display = 'none';
+      generateBoard();
     }
-  }
 
-  function attachEvents(cell, i) {
-    // 데스크탑
-    cell.addEventListener('click', () => handleClick(i));
-    cell.addEventListener('contextmenu', (e) => {
-      e.preventDefault(); toggleFlag(i);
-    });
+    function generateBoard() {
+      clearInterval(timerInterval);
+      timer = 0;
+      timerDisplay.textContent = 0;
+      board.innerHTML = '';
+      cells = [];
+      firstClick = true;
+      revealedCount = 0;
 
-    // 모바일 터치 (롱프레스 감지, 이동 10px 이상 시 롱프레스 취소)
-    let timer = null;
-    let moved = false;
-    let startX, startY;
-    const MOVE_THRESHOLD = 10;
-
-    cell.addEventListener('touchstart', (e) => {
-      moved = false;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      timer = setTimeout(() => {
-        toggleFlag(i);
-        moved = true;
-      }, LONG_PRESS);
-    });
-
-    cell.addEventListener('touchmove', (e) => {
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-        clearTimeout(timer);
-        moved = true;
+      const difficulty = difficultySelect.value;
+      if (difficulty === 'easy') {
+        size = 8;
+        mineCount = 10;
+      } else if (difficulty === 'medium') {
+        size = 10;
+        mineCount = 15;
+      } else {
+        size = 12;
+        mineCount = 25;
       }
-    });
 
-    cell.addEventListener('touchend', () => {
-      clearTimeout(timer);
-      if (!moved) handleClick(i);
-    });
-  }
+      board.style.gridTemplateColumns = `repeat(${size}, 40px)`;
+      board.style.gridTemplateRows = `repeat(${size}, 40px)`;
 
-  function startTimer() {
-    timerId = setInterval(() => {
-      timer++;
-      timerEl.textContent = timer;
-    }, 1000);
-  }
+      flagsLeft = mineCount;
+      flagsLeftDisplay.textContent = flagsLeft;
 
-  function placeMines(excludeIndex) {
-    const mines = new Set();
-    while (mines.size < mineCount) {
-      const rand = Math.floor(Math.random() * size * size);
-      if (rand !== excludeIndex) {
-        mines.add(rand);
+      for (let i = 0; i < size * size; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        board.appendChild(cell);
+        cells[i] = cell;
+
+        cell.addEventListener('click', (e) => handleClick(i, e));
+        cell.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          toggleFlag(i);
+        });
       }
     }
-    for (let idx of mines) {
-      cells[idx].dataset.mine = 'true';
-    }
-  }
 
-  function countMines(x, y) {
-    let count = 0;
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const nx = x + dx, ny = y + dy;
-        if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-          const neighbor = cells[ny * size + nx];
-          if (neighbor.dataset.mine === 'true') count++;
+    function startTimer() {
+      timerInterval = setInterval(() => {
+        timer++;
+        timerDisplay.textContent = timer;
+      }, 1000);
+    }
+
+    function placeMines(excludeIndex) {
+      const mineSet = new Set();
+      while (mineSet.size < mineCount) {
+        const rand = Math.floor(Math.random() * size * size);
+        if (rand !== excludeIndex) {
+          mineSet.add(rand);
         }
       }
-    }
-    return count;
-  }
-
-  function handleClick(i) {
-    const cell = cells[i];
-    if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
-
-    if (firstClick) {
-      placeMines(i);
-      startTimer();
-      firstClick = false;
+      mineSet.forEach(i => cells[i].dataset.mine = 'true');
     }
 
-    reveal(i);
-  }
-
-  function reveal(i) {
-    const cell = cells[i];
-    if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
-
-    cell.classList.add('revealed');
-    revealed++;
-
-    if (cell.dataset.mine === 'true') {
-      cell.classList.add('mine');
-      cell.textContent = '💣';
-      clearInterval(timerId);
-      revealAllMines();
-      alert('💥 지뢰를 밟았습니다! 게임 오버!');
-      return;
-    }
-
-    const x = i % size;
-    const y = Math.floor(i / size);
-    const count = countMines(x, y);
-
-    if (count > 0) {
-      cell.textContent = count;
-    } else {
+    function countAdjacentMines(index) {
+      const x = index % size;
+      const y = Math.floor(index / size);
+      let count = 0;
       for (let dx = -1; dx <= 1; dx++) {
         for (let dy = -1; dy <= 1; dy++) {
           const nx = x + dx;
           const ny = y + dy;
           if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
-            reveal(ny * size + nx);
+            const ni = ny * size + nx;
+            if (cells[ni]?.dataset.mine === 'true') count++;
           }
         }
       }
+      return count;
     }
 
-    if (revealed === size * size - mineCount) {
-      winMsg.style.display = 'block';
-      clearInterval(timerId);
+    function handleClick(index, e) {
+      const cell = cells[index];
+      if (cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
+
+      if (firstClick) {
+        placeMines(index);
+        startTimer();
+        firstClick = false;
+      }
+
+      reveal(index);
     }
-  }
 
-  function toggleFlag(i) {
-    const cell = cells[i];
-    if (cell.classList.contains('revealed')) return;
-
-    if (cell.classList.contains('flagged')) {
-      cell.classList.remove('flagged');
-      cell.textContent = '';
-      flagsLeft++;
-    } else if (flagsLeft > 0) {
-      cell.classList.add('flagged');
-      cell.textContent = '🚩';
-      flagsLeft--;
+    function toggleFlag(index) {
+      const cell = cells[index];
+      if (cell.classList.contains('revealed')) return;
+      if (cell.classList.contains('flagged')) {
+        cell.classList.remove('flagged');
+        cell.innerText = '';
+        flagsLeft++;
+      } else if (flagsLeft > 0) {
+        cell.classList.add('flagged');
+        cell.innerText = '🚩';
+        flagsLeft--;
+      }
+      flagsLeftDisplay.textContent = flagsLeft;
     }
-    flagsEl.textContent = flagsLeft;
-  }
 
-  function revealAllMines() {
-    for (const cell of cells) {
+    function reveal(index) {
+      const cell = cells[index];
+      if (!cell || cell.classList.contains('revealed') || cell.classList.contains('flagged')) return;
+
+      cell.classList.add('revealed');
+      revealedCount++;
+
       if (cell.dataset.mine === 'true') {
-        cell.classList.add('revealed', 'mine');
-        cell.textContent = '💣';
+        cell.classList.add('mine');
+        cell.innerText = '💣';
+        alert('지뢰를 밟았습니다! 게임 오버!');
+        revealAllMines();
+        clearInterval(timerInterval);
+        return;
+      }
+
+      const count = countAdjacentMines(index);
+      if (count > 0) {
+        cell.innerText = count;
+      } else {
+        const x = index % size;
+        const y = Math.floor(index / size);
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < size && ny < size) {
+              const ni = ny * size + nx;
+              reveal(ni);
+            }
+          }
+        }
+      }
+
+      if (revealedCount === size * size - mineCount) {
+        winMessage.style.display = 'block';
+        clearInterval(timerInterval);
       }
     }
-  }
-</script>
+
+    function revealAllMines() {
+      cells.forEach(cell => {
+        if (cell.dataset.mine === 'true') {
+          cell.classList.add('revealed', 'mine');
+          cell.innerText = '💣';
+        }
+      });
+    }
+
+    themeToggle.onclick = () => {
+      document.body.classList.toggle('light');
+      themeToggle.textContent = document.body.classList.contains('light') ? '🌞 테마' : '🌙 테마';
+    };
+
+    generateBoard();
+  </script>
 </body>
 </html>
